@@ -78,7 +78,7 @@ def get_pod_metrics(pod):
     """Retorna a métrica do pod ou
     None caso não exista métrica
     """
-    metric = oc.get_pod_metrics(pod, auto_raise=False )
+    metric = oc.get_pod_metrics(pod, auto_raise=False)
     if isinstance(metric, oc.apiobject.APIObject):
         return metric
     return None
@@ -118,6 +118,7 @@ def get_pod_containers_usage(project, server, token):
         with oc.api_server(server):
             sys.stderr.write('server: {}\n'.format(server))
             with oc.token(token):
+                sys.stderr.write('token: {}\n'.format(token[10:]))
                 with oc.project(project), oc.timeout(10*60):
                     sys.stderr.write('project: {}\n'.format(project))
                     for pod_obj in oc.selector('pods').objects():
