@@ -1,0 +1,5 @@
+pipeline/
+*.tar.gz
+*.gz
+*.tar
+*.tgz

@@ -1,0 +1,3 @@
+openshift-client
+prometheus_client
+environs
