@@ -178,7 +178,7 @@ def main():
     sys.stderr.write('wait_time_seconds: {}\n'.format(wait_time_seconds))
     while True:
         for project in PROJECTS:
-            for container in get_pod_containers_usage(project, token):
+            for container in get_pod_containers_usage(project):
                 app = container.app_name
                 pod = container.pod_name
                 cpu = container.usage['cpu']
