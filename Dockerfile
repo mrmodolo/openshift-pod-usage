@@ -28,6 +28,12 @@ COPY top-pods-dot-net.py .
 
 ENV PYTHONUNBUFFERED=0
 
+RUN unlink /bin/sh && ln -s /usr/bin/bash /bin/sh
+
+ENV HOME=/opt/troubleshot
+
+WORKDIR /usr/src/app
+
 EXPOSE 8000
 
 CMD [ "python","-u","./top-pods-dot-net.py" ]

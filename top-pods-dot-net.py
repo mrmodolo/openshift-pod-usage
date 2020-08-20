@@ -109,29 +109,31 @@ class ContainerUsage():
         return str_self.format(self.app_name, self.pod_name, self.usage)
 
 
-def get_pod_containers_usage(project, server, token):
+def get_pod_containers_usage(project, token):
     """
     Retorna um iterador para cada container com
     métricas
     """
-    with oc.loglevel(6):
-        with oc.api_server(server):
-            sys.stderr.write('server: {}\n'.format(server))
-            with oc.token(token):
-                sys.stderr.write('token: {}\n'.format(token[10:]))
-                with oc.project(project), oc.timeout(10*60):
-                    sys.stderr.write('project: {}\n'.format(project))
-                    for pod_obj in oc.selector('pods').objects():
-                        metric = get_pod_metrics(pod_obj)
-                        if metric:
-                            pod_name = pod_obj.model.metadata.name
-                            containers = metric.model.containers
-                            for container in containers:
-                                app_name = container['name']
-                                usage = get_container_usage(container)
-                                containerUsage = ContainerUsage(app_name,
-                                                                pod_name, usage)
-                                yield containerUsage
+    containers_usage = []
+    try:
+        with oc.token(token):
+            with oc.project(project), oc.timeout(2*60):
+                sys.stderr.write('project: {}\n'.format(project))
+                for pod_obj in oc.selector('pods').objects():
+                    metric = get_pod_metrics(pod_obj)
+                    if metric:
+                        pod_name = pod_obj.model.metadata.name
+                        containers = metric.model.containers
+                        for container in containers:
+                            app_name = container['name']
+                            usage = get_container_usage(container)
+                            containerUsage = ContainerUsage(app_name,
+                                                            pod_name, usage)
+                            containers_usage.append(containerUsage)
+                            sys.stderr.write('container: {}\n'.format(containerUsage))
+    except:
+        sys.stderr.write('Exception')
+    return containers_usage
 
 
 def get_server(server):
@@ -175,23 +177,20 @@ def main():
     sys.stderr.write('port: {}\n'.format(port))
     sys.stderr.write('PROJECTS: {}\n'.format(PROJECTS))
     sys.stderr.write('wait_time_seconds: {}\n'.format(wait_time_seconds))
-    try:
-        while True:
-            for project in PROJECTS:
-                for container in get_pod_containers_usage(project,
-                                                          server, token):
-                    app = container.app_name
-                    pod = container.pod_name
-                    cpu = container.usage['cpu']
-                    memory = container.usage['memory']
-                    sys.stderr.write('container: {}\n'.format(container))
-                    CPU.labels(namespace=project, app=app, pod=pod).set(cpu)
-                    MEMORY.labels(namespace=project,
-                                  app=app, pod=pod).set(memory)
-            time.sleep(wait_time_seconds)
-    except KeyboardInterrupt:
-        sys.stderr.write('\nSaindo...\n', file=sys.stderr)
-        sys.exit()
+    with oc.api_server(server):
+        sys.stderr.write('server: {}\n'.format(server))
+        with oc.token(token):
+            while True:
+                for project in PROJECTS:
+                    for container in get_pod_containers_usage(project, token):
+                        app = container.app_name
+                        pod = container.pod_name
+                        cpu = container.usage['cpu']
+                        memory = container.usage['memory']
+                        CPU.labels(namespace=project, app=app, pod=pod).set(cpu)
+                        MEMORY.labels(namespace=project,
+                                      app=app, pod=pod).set(memory)
+                time.sleep(wait_time_seconds)
 
 
 if __name__ in '__main__':
