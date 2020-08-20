@@ -24,7 +24,7 @@ RUN chmod +x /usr/bin/oc /usr/bin/kubectl
 
 RUN rm -f openshift.tgz
 
-COPY top-pods-dot-net.py .
+COPY top-pods.py .
 
 ENV PYTHONUNBUFFERED=0
 
@@ -36,4 +36,4 @@ WORKDIR /usr/src/app
 
 EXPOSE 8000
 
-CMD [ "python","-u","./top-pods-dot-net.py" ]
+CMD [ "python","-u","./top-pods.py" ]
