@@ -6,6 +6,7 @@ import sys
 import time
 from prometheus_client import start_http_server, Gauge
 from environs import Env
+from datetime import datetime
 
 
 # CPU units
@@ -114,25 +115,21 @@ def get_pod_containers_usage(project):
     Retorna um iterador para cada container com
     métricas
     """
-    containers_usage = []
-    try:
-        with oc.project(project), oc.timeout(2*60):
-            sys.stderr.write('project: {}\n'.format(project))
-            for pod_obj in oc.selector('pods').objects():
-                metric = get_pod_metrics(pod_obj)
-                if metric:
-                    pod_name = pod_obj.model.metadata.name
-                    containers = metric.model.containers
-                    for container in containers:
-                        app_name = container['name']
-                        usage = get_container_usage(container)
-                        containerUsage = ContainerUsage(app_name,
-                                                        pod_name, usage)
-                        containers_usage.append(containerUsage)
-                        sys.stderr.write('container: {}\n'.format(containerUsage))
-    except oc.OpenShiftPythonException as exception:
-        print(exception)
-    return containers_usage
+    with oc.project(project), oc.timeout(2*60):
+        for pod_obj in oc.selector('pods').objects():
+            metric = get_pod_metrics(pod_obj)
+            pod_name = pod_obj.model.metadata.name
+            if metric:
+                containers = metric.model.containers
+                for container in containers:
+                    app_name = container['name']
+                    usage = get_container_usage(container)
+                    containerUsage = ContainerUsage(app_name,
+                                                    pod_name, usage)
+                    yield containerUsage
+            else:
+                msg = 'Nenhuma métrica para o pod {}'.format(pod_name)
+                info_msg(msg)
 
 
 def get_server(server):
@@ -165,28 +162,45 @@ def get_namespaces():
     return namespaces
 
 
+def info_msg(msg):
+    now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    sys.stdout.write('[{}] {}\n'.format(now, msg))
+
+
+def err_msg(msg):
+    now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    sys.stderr.write('[{}] {}\n'.format(now, msg))
+
+
 def main():
-    token = get_token(None)
-    server = get_server(None)
     port = get_metrics_server_port()
-    start_http_server(port)
     PROJECTS = get_namespaces()
     wait_time_seconds = get_wait_time_seconds()
-    sys.stderr.write('server: {}\n'.format(server))
-    sys.stderr.write('port: {}\n'.format(port))
-    sys.stderr.write('PROJECTS: {}\n'.format(PROJECTS))
-    sys.stderr.write('wait_time_seconds: {}\n'.format(wait_time_seconds))
-    while True:
-        for project in PROJECTS:
-            for container in get_pod_containers_usage(project):
-                app = container.app_name
-                pod = container.pod_name
-                cpu = container.usage['cpu']
-                memory = container.usage['memory']
-                CPU.labels(namespace=project, app=app, pod=pod).set(cpu)
-                MEMORY.labels(namespace=project,
-                              app=app, pod=pod).set(memory)
-        time.sleep(wait_time_seconds)
+    info_msg('Environment PROJECTS: {}'.format(PROJECTS))
+    info_msg('Environment wait_time_seconds: {}'.format(wait_time_seconds))
+    start_http_server(port)
+    try:
+        while True:
+            for project in PROJECTS:
+                info_msg('Project: {}'.format(project))
+                for container in get_pod_containers_usage(project):
+                    app = container.app_name
+                    pod = container.pod_name
+                    cpu = container.usage['cpu']
+                    memory = container.usage['memory']
+                    CPU.labels(namespace=project, app=app, pod=pod).set(cpu)
+                    MEMORY.labels(namespace=project,
+                                  app=app, pod=pod).set(memory)
+                    msg = '{}'.format(container)
+                    info_msg(msg)
+            msg = 'Aguardando #{} segundos.'
+            info_msg(msg.format(wait_time_seconds))
+            time.sleep(wait_time_seconds)
+    except oc.OpenShiftPythonException as ocException:
+        err_msg(repr(ocException))
+    except KeyboardInterrupt:
+        err_msg('Saindo.')
+        sys.exit()
 
 
 if __name__ in '__main__':
