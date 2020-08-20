@@ -131,8 +131,8 @@ def get_pod_containers_usage(project, token):
                                                             pod_name, usage)
                             containers_usage.append(containerUsage)
                             sys.stderr.write('container: {}\n'.format(containerUsage))
-    except:
-        sys.stderr.write('Exception')
+    except oc.OpenShiftPythonException as exception:
+        print(exception)
     return containers_usage
 
 
