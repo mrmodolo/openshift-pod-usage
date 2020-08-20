@@ -14,4 +14,6 @@ docker run --rm -p 8000:8000 \
 
 [Using a Service Account’s Credentials Inside a Container](https://docs.openshift.com/container-platform/3.6/dev_guide/service_accounts.html)
 
+[Pods and Services](https://docs.openshift.com/container-platform/3.11/architecture/core_concepts/pods_and_services.html)
 
+[Service](https://kubernetes.io/docs/concepts/services-networking/service/)
